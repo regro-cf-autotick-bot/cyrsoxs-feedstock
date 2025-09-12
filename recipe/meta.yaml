@@ -38,6 +38,7 @@ requirements:
     - libcufft-dev                              # [(cuda_compiler_version or "").startswith("12") or (cuda_compiler_version or "").startswith("13")]
     - libcublas-dev                             # [(cuda_compiler_version or "").startswith("12") or (cuda_compiler_version or "").startswith("13")]
     - libnpp-dev                                # [(cuda_compiler_version or "").startswith("12") or (cuda_compiler_version or "").startswith("13")]
+
   run:
     - libgomp
     - libconfig
