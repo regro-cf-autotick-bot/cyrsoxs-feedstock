@@ -21,6 +21,13 @@ if [[ "${CONDA_OVERRIDE_CUDA:-}" =~ ^(12|13)\. ]]; then
   export CUDAARCHS
 fi
 
+# scrub maxwell support
+
+export CMAKE_CUDA_FLAGS="${CMAKE_CUDA_FLAGS:-}"
+CMAKE_CUDA_FLAGS="${CMAKE_CUDA_FLAGS//-gencode=arch=compute_52,code=sm_52/}"
+CMAKE_CUDA_FLAGS="${CMAKE_CUDA_FLAGS//-gencode=arch=compute_50,code=sm_50/}"
+export CMAKE_CUDA_FLAGS
+
 # --- Base (single precision, exe) ---
 mkdir build
 cd build
