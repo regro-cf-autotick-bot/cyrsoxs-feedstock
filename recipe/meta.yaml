@@ -30,10 +30,14 @@ requirements:
     - libgomp
     - libconfig
     - cuda-version {{ cuda_compiler_version }}  # [(cuda_compiler_version or "None") != "None"]
-    - cuda-cudart-dev                           # [(cuda_compiler_version or "").startswith("12")]
-    - libcufft-dev                              # [(cuda_compiler_version or "").startswith("12")]
-    - libcublas-dev                             # [(cuda_compiler_version or "").startswith("12")]
-    - libnpp-dev                                # [(cuda_compiler_version or "").startswith("12")]
+#    - cuda-cudart-dev                           # [(cuda_compiler_version or "").startswith("12")]
+#    - libcufft-dev                              # [(cuda_compiler_version or "").startswith("12")]
+#    - libcublas-dev                             # [(cuda_compiler_version or "").startswith("12")]
+#    - libnpp-dev                                # [(cuda_compiler_version or "").startswith("12")]
+    - cuda-cudart-dev                           # [(cuda_compiler_version or "").startswith("12") or (cuda_compiler_version or "").startswith("13")]
+    - libcufft-dev                              # [(cuda_compiler_version or "").startswith("12") or (cuda_compiler_version or "").startswith("13")]
+    - libcublas-dev                             # [(cuda_compiler_version or "").startswith("12") or (cuda_compiler_version or "").startswith("13")]
+    - libnpp-dev                                # [(cuda_compiler_version or "").startswith("12") or (cuda_compiler_version or "").startswith("13")]
   run:
     - libgomp
     - libconfig
