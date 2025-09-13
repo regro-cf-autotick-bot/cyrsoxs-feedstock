@@ -8,6 +8,8 @@ package:
 source:
   url: https://github.com/usnistgov/cyrsoxs/archive/refs/tags/v{{ version }}.tar.gz
   sha256: {{ sha }}
+  patches:
+    - 0001-cmake-archs-cuda13.patch
 
 build:
   skip: True  # [not linux64 or cuda_compiler_version == "None"]
