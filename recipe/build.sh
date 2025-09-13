@@ -1,3 +1,20 @@
+# --- force CUDA archs in the source so CMake doesn't emit compute_52 ---
+# Normalize line endings (upstream file uses CRLF; patch failed on that)
+sed -i 's/\r$//' "${SRC_DIR}/CMakeLists.txt"
+
+# Replace the hard-coded target property with a CUDA 12/13-safe set (Turing+)
+# This covers: 70 (Volta/Turing PTX), 75 (Turing), 80/86 (Ampere), 89 (Ada), 90 (Hopper)
+sed -i -E \
+  's|^(.*set_property\(TARGET[[:space:]]+\$\{OUTPUT_BASE_NAME\}[[:space:]]+PROPERTY[[:space:]]+CUDA_ARCHITECTURES)[^)]*\)|\1 70 75 80 86 89 90)|' \
+  "${SRC_DIR}/CMakeLists.txt"
+
+# Optional: if CI provides CUDAARCHS, honor it instead
+if [[ -n "${CUDAARCHS:-}" ]]; then
+  sed -i -E \
+    "s|^(.*set_property\(TARGET[[:space:]]+\$\{OUTPUT_BASE_NAME\}[[:space:]]+PROPERTY[[:space:]]+CUDA_ARCHITECTURES)[^)]*\)|\1 ${CUDAARCHS})|" \
+    "${SRC_DIR}/CMakeLists.txt"
+fi
+
 # --- Base (single precision, exe) ---
 mkdir build
 cd build
