@@ -5,7 +5,7 @@ sed -i 's/\r$//' "${SRC_DIR}/CMakeLists.txt"
 # Replace the hard-coded target property with a CUDA 12/13-safe set (Turing+)
 # This covers: 70 (Volta/Turing PTX), 75 (Turing), 80/86 (Ampere), 89 (Ada), 90 (Hopper)
 sed -i -E \
-  's|^(.*set_property\(TARGET[[:space:]]+\$\{OUTPUT_BASE_NAME\}[[:space:]]+PROPERTY[[:space:]]+CUDA_ARCHITECTURES)[^)]*\)|\1 70 75 80 86 89 90)|' \
+  's|^(.*set_property\(TARGET[[:space:]]+\$\{OUTPUT_BASE_NAME\}[[:space:]]+PROPERTY[[:space:]]+CUDA_ARCHITECTURES)[^)]*\)|\1 75 80 86 89 90)|' \
   "${SRC_DIR}/CMakeLists.txt"
 
 # Optional: if CI provides CUDAARCHS, honor it instead
@@ -261,5 +261,3 @@ cmake ${SRC_DIR} \
 make install
 cd ../
 rm -r build-pybind
-
->>>>>>> 22c69c6f0f8babcae96120035e902aa751bc4c76
