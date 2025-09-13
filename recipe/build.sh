@@ -1,37 +1,53 @@
-# --- NPP CUDA13 compatibility shim (replace your current shim block with this) ---
-# Creates src/cf_npp_compat.h and includes it into src/cudaMain.cu.
-# For CUDA >=13, remap legacy nppiWarpAffine_32f_C1R(...) -> nppiWarpAffine_32f_C1R_Ctx(..., ctx).
-
-set -euo pipefail
-
+# --- Inject NPP compatibility shim for CUDA >= 12.5 (uses _Ctx APIs) ---
 cat > "${SRC_DIR}/src/cf_npp_compat.h" <<'EOF'
 #pragma once
-#include <cuda_runtime.h>
+#include <npp.h>
 #include <nppi.h>
+#include <nppi_geometry_transforms.h>
 
-#if defined(CUDART_VERSION) && (CUDART_VERSION >= 13000)
+// Use _Ctx API starting with NPP 12.5+ (and CUDA 13.x)
+// NPP_VERSION is defined in nppdefs.h as (MAJOR*1000 + MINOR)
+#ifndef NPP_VERSION
+#define NPP_VERSION 0
+#endif
 
-// Minimal, portable context: only stream and device id (avoid version-specific fields)
-inline NppStreamContext cfMakeNppCtx(cudaStream_t s = 0) {
-    NppStreamContext ctx{};
-    int dev = 0;
-    if (cudaGetDevice(&dev) == cudaSuccess) {
-        ctx.nCudaDeviceId = dev;
-    }
-    ctx.hStream = s;
-    return ctx;
+#if (NPP_VERSION >= 12050)
+static inline NppStatus cyrsoxs_nppiWarpAffine_32f_C1R(
+    const Npp32f *pSrc, NppiSize oSrcSize, int nSrcStep, NppiRect oSrcROI,
+    Npp32f *pDst, int nDstStep, NppiRect oDstROI,
+    const double aCoeffs[2][3], int eInterpolation)
+{
+    NppStreamContext ctx;
+    nppGetStreamContext(&ctx);
+    return nppiWarpAffine_32f_C1R_Ctx(
+        pSrc, oSrcSize, nSrcStep, oSrcROI,
+        pDst, nDstStep, oDstROI,
+        aCoeffs, eInterpolation, ctx);
 }
 
-// Map legacy API to _Ctx variant
-#define nppiWarpAffine_32f_C1R(pSrc, oSrcSize, nSrcStep, oSrcROI, pDst, nDstStep, oDstROI, aCoeffs, eInterpolation) \
-    nppiWarpAffine_32f_C1R_Ctx((pSrc), (oSrcSize), (nSrcStep), (oSrcROI), (pDst), (nDstStep), (oDstROI), (aCoeffs), (eInterpolation), cfMakeNppCtx(0))
+static inline NppStatus cyrsoxs_nppiWarpAffine_64f_C1R(
+    const Npp64f *pSrc, NppiSize oSrcSize, int nSrcStep, NppiRect oSrcROI,
+    Npp64f *pDst, int nDstStep, NppiRect oDstROI,
+    const double aCoeffs[2][3], int eInterpolation)
+{
+    NppStreamContext ctx;
+    nppGetStreamContext(&ctx);
+    return nppiWarpAffine_64f_C1R_Ctx(
+        pSrc, oSrcSize, nSrcStep, oSrcROI,
+        pDst, nDstStep, oDstROI,
+        aCoeffs, eInterpolation, ctx);
+}
 
-#endif // CUDART_VERSION >= 13000
+// Keep your call sites unchanged:
+#define nppiWarpAffine_32f_C1R cyrsoxs_nppiWarpAffine_32f_C1R
+#define nppiWarpAffine_64f_C1R cyrsoxs_nppiWarpAffine_64f_C1R
+#endif
 EOF
 
-# Ensure the shim is included exactly once
+# Make sure the shim is included very early in the CUDA translation unit.
+# If it isn’t already, prepend an include to cudaMain.cu once.
 if ! grep -q 'cf_npp_compat.h' "${SRC_DIR}/src/cudaMain.cu"; then
-  sed -i '1i #include "cf_npp_compat.h"' "${SRC_DIR}/src/cudaMain.cu"
+  sed -i '1s|^|#include "cf_npp_compat.h"\n|' "${SRC_DIR}/src/cudaMain.cu"
 fi
 
 # --- force CUDA archs in the source so CMake doesn't emit compute_52 ---
