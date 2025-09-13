@@ -1,58 +1,35 @@
-# --- NPP CUDA13 compatibility shim -------------------------------------------------
-# Creates src/cf_npp_compat.h and includes it in src/cudaMain.cu
-# For CUDA 13+, remap legacy nppiWarpAffine_32f_C1R(...) -> nppiWarpAffine_32f_C1R_Ctx(..., ctx)
-# where ctx is built from the current device/stream.
+# --- NPP CUDA13 compatibility shim (replace your current shim block with this) ---
+# Creates src/cf_npp_compat.h and includes it into src/cudaMain.cu.
+# For CUDA >=13, remap legacy nppiWarpAffine_32f_C1R(...) -> nppiWarpAffine_32f_C1R_Ctx(..., ctx).
 
 set -euo pipefail
 
-# Write the shim header
 cat > "${SRC_DIR}/src/cf_npp_compat.h" <<'EOF'
 #pragma once
 #include <cuda_runtime.h>
-#include <nppi.h>   // nppiWarpAffine_32f_C1R{,_Ctx}, NppStreamContext
-#include <cstring>
+#include <nppi.h>
 
 #if defined(CUDART_VERSION) && (CUDART_VERSION >= 13000)
 
-// Prefer asking NPP for a context when available; otherwise fill minimally from CUDA
+// Minimal, portable context: only stream and device id (avoid version-specific fields)
 inline NppStreamContext cfMakeNppCtx(cudaStream_t s = 0) {
     NppStreamContext ctx{};
-    // Try to get a context from NPP (present in many toolkit versions)
-    // If unavailable in a given toolkit, the following block still compiles; the call just resolves.
-    // If it ever disappears, the fallback below still initializes a valid minimal context.
-    #pragma push_macro("NPP_TRY_GET_CTX")
-    #define NPP_TRY_GET_CTX 1
-    #if NPP_TRY_GET_CTX
-    extern "C" void nppGetStreamContext(NppStreamContext* pCtx);
-    nppGetStreamContext(&ctx);
-    #endif
-    // Ensure stream is set to what we want
-    ctx.hStream = s;
-
-    // Fallback/minimal fill (harmless if nppGetStreamContext already ran)
     int dev = 0;
-    cudaDeviceProp prop{};
-    if (cudaGetDevice(&dev) == cudaSuccess && cudaGetDeviceProperties(&prop, dev) == cudaSuccess) {
+    if (cudaGetDevice(&dev) == cudaSuccess) {
         ctx.nCudaDeviceId = dev;
-        ctx.nMultiProcessorCount = prop.multiProcessorCount;
-        ctx.nMaxThreadsPerBlock = prop.maxThreadsPerBlock;
-        ctx.nMaxThreadsPerMultiprocessor = prop.maxThreadsPerMultiProcessor;
-        ctx.nCudaDevAttrComputeCapabilityMajor = prop.major;
-        ctx.nCudaDevAttrComputeCapabilityMinor = prop.minor;
-        // Some headers have extra fields; zero-init above keeps them safe.
     }
-    #pragma pop_macro("NPP_TRY_GET_CTX")
+    ctx.hStream = s;
     return ctx;
 }
 
-// Map legacy API to _Ctx variant transparently
+// Map legacy API to _Ctx variant
 #define nppiWarpAffine_32f_C1R(pSrc, oSrcSize, nSrcStep, oSrcROI, pDst, nDstStep, oDstROI, aCoeffs, eInterpolation) \
     nppiWarpAffine_32f_C1R_Ctx((pSrc), (oSrcSize), (nSrcStep), (oSrcROI), (pDst), (nDstStep), (oDstROI), (aCoeffs), (eInterpolation), cfMakeNppCtx(0))
 
 #endif // CUDART_VERSION >= 13000
 EOF
 
-# Include the shim in the translation unit that calls nppiWarpAffine_32f_C1R
+# Ensure the shim is included exactly once
 if ! grep -q 'cf_npp_compat.h' "${SRC_DIR}/src/cudaMain.cu"; then
   sed -i '1i #include "cf_npp_compat.h"' "${SRC_DIR}/src/cudaMain.cu"
 fi
